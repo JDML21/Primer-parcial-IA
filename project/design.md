@@ -157,15 +157,32 @@ PICKUP(x)         | x en el suelo de z; peso(C)+w(x) ≤ cap; x está VIVO;     
 DROP(x)           | x ∈ C; x está MUERTO; carga LLENA; existe en z un        | x: carga → suelo de z                     | action_costs.drop
                   | PICKUP útil bloqueado únicamente por capacidad           | (al estar muerto, sale del estado)        |
 OPEN_DOOR(d)      | z ∈ between(d); d ∉ D; llave(d) ∈ C                      | D := D ∪ {d}                              | action_costs.interact
-REPAIR(p)         | z = zona(p); p ∉ P; herramienta(p) ∈ C; material(p) ∈ C  | P := P ∪ {p}; material consumido;         | action_costs.interact
-                  |                                                         | la herramienta NO se consume              |
-ACTIVATE(st)      | z = zona(st); st ∉ S; paneles(st) ⊆ P; estaciones(st) ⊆ S| S := S ∪ {st}                             | action_costs.interact
-RECHARGE(c)       | z = zona(c); b < battery_max                             | b := battery_max                          | action_costs.recharge
+REPAIR(p)         | z = zona(p); p PENDIENTE; herramienta(p) ∈ C;            | P := P ∪ {p}; material consumido;         | action_costs.interact
+                  | material(p) ∈ C                                         | la herramienta NO se consume              |
+ACTIVATE(st)      | z = zona(st); st ∈ S*; st ∉ S; paneles(st) ⊆ P;          | S := S ∪ {st}                             | action_costs.interact
+                  | estaciones(st) ⊆ S                                      |                                           |
+RECHARGE(c)       | c es un cargador declarado en zona z; b < battery_max    | b := battery_max                          | action_costs.recharge
 ```
 
 Los costos **no se inventan**: salen de `scenario.json` (`corridor.cost` y
 `action_costs.*`). En `RECHARGE` el costo se paga **antes** de recargar, así que
 la precondición `b ≥ cost` sigue aplicando.
+
+Tres precondiciones son más estrictas de lo que el simulador exigiría, y es
+deliberado:
+
+- **`p` PENDIENTE** en `REPAIR` no es «cualquier panel dañado», sino un panel de
+  `P*` que sigue dañado y que alguna estación de `S*` todavía OFFLINE exige.
+  Reparar un panel que ninguna estación de la meta necesita no acerca a `Goal`.
+- **`st ∈ S*`** en `ACTIVATE`: activar una estación fuera de la clausura de la
+  meta no aparece en ningún plan óptimo. Si otra estación de la meta dependiera
+  de ella, la clausura ya la habría incluido.
+- **`c` cargador declarado**: el frontend acepta recargar en una zona marcada
+  con `recharge: true` aunque no tenga entrada en `chargers`, pero `simulator.py`
+  exige que el `target` sea un id de `chargers` situado en la zona. Genero solo
+  los `RECHARGE` que **ambos** validadores aceptan; si una instancia marcara una
+  zona recargable sin declarar el cargador, mi agente simplemente no recargaría
+  allí (pierde una opción, nunca emite un paso inválido).
 
 ### `Applicable` interno vs legalidad del contrato
 
@@ -408,9 +425,12 @@ espacio es el habitual de UCS: la frontera domina la memoria.
 
 **Cuándo se rompen las garantías:**
 
-- costos `0` o negativos: se pierde la optimalidad (y con ciclos de costo 0, la
-  terminación). Aquí todos los costos del escenario son positivos, y lo verifico
-  al construir el mundo;
+- **costos negativos**: rompen el supuesto de Dijkstra y con él la optimalidad,
+  porque un camino ya cerrado podría abaratarse después. `build_world` los
+  rechaza con `ValueError` al parsear el escenario. Los costos **cero** no
+  rompen nada aquí: la optimalidad solo exige costos no negativos, y los ciclos
+  gratis no cuelgan la búsqueda porque Graph Search los reconoce en CLOSED
+  (el mismo estado con `g` igual y batería igual queda dominado);
 - estados mal canonicalizados (materiales con id individual, listas en vez de
   conjuntos): CLOSED deja de reconocer repetidos y Graph Search degenera en Tree
   Search;

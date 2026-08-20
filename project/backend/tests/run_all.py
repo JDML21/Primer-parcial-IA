@@ -12,6 +12,7 @@ from pathlib import Path
 TESTS = [
     "test_demo_plan.py",
     "test_agent_optimal.py",
+    "test_design_consistency.py",
     "test_case1_equivalence.py",
     "test_case2_relevance.py",
     "test_case3_cost_vs_steps.py",
