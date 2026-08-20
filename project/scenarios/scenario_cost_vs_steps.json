@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "id": "cost_vs_steps",
+    "title": "Caso 3 — menos pasos no es menor costo",
+    "description": "Ruta directa cara (1 MOVE de 20) contra ruta indirecta barata (2 MOVE de 5). El plan optimo tiene MAS pasos y MENOS costo."
+  },
+  "robot": { "start": "Z1", "battery_max": 100, "battery_start": 60, "cargo_capacity": 2 },
+  "zones": [
+    { "id": "Z1", "name": "ENTRADA", "recharge": false },
+    { "id": "Z2", "name": "PASILLO", "recharge": false },
+    { "id": "Z3", "name": "NUCLEO", "recharge": false }
+  ],
+  "corridors": [
+    { "from": "Z1", "to": "Z3", "cost": 20, "door": null },
+    { "from": "Z3", "to": "Z1", "cost": 20, "door": null },
+    { "from": "Z1", "to": "Z2", "cost": 5, "door": null },
+    { "from": "Z2", "to": "Z1", "cost": 5, "door": null },
+    { "from": "Z2", "to": "Z3", "cost": 5, "door": null },
+    { "from": "Z3", "to": "Z2", "cost": 5, "door": null }
+  ],
+  "doors": [],
+  "keys": [],
+  "tools": [],
+  "materials": [],
+  "panels": [],
+  "stations": [
+    { "id": "BEACON", "kind": "command", "zone": "Z3", "state": "OFFLINE", "requires": {} }
+  ],
+  "chargers": [],
+  "goal": { "stations_online": ["BEACON"] },
+  "action_costs": { "pickup": 1, "drop": 1, "interact": 2, "recharge": 3 }
+}

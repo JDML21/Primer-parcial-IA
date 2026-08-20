@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "id": "alt_routes",
+    "title": "Caso 5 — rutas alternativas a la misma configuracion",
+    "description": "Dos caminos Z1->Z4 alcanzan la misma configuracion del mundo con distinto costo y distinta bateria residual. CLOSED debe reconocerlos y conservar el barato."
+  },
+  "robot": { "start": "Z1", "battery_max": 100, "battery_start": 40, "cargo_capacity": 2 },
+  "zones": [
+    { "id": "Z1", "name": "ENTRADA", "recharge": false },
+    { "id": "Z2", "name": "RAMA_CARA", "recharge": false },
+    { "id": "Z3", "name": "RAMA_BARATA", "recharge": false },
+    { "id": "Z4", "name": "NUCLEO", "recharge": false }
+  ],
+  "corridors": [
+    { "from": "Z1", "to": "Z2", "cost": 4, "door": null },
+    { "from": "Z2", "to": "Z1", "cost": 4, "door": null },
+    { "from": "Z1", "to": "Z3", "cost": 3, "door": null },
+    { "from": "Z3", "to": "Z1", "cost": 3, "door": null },
+    { "from": "Z2", "to": "Z4", "cost": 4, "door": null },
+    { "from": "Z4", "to": "Z2", "cost": 4, "door": null },
+    { "from": "Z3", "to": "Z4", "cost": 3, "door": null },
+    { "from": "Z4", "to": "Z3", "cost": 3, "door": null }
+  ],
+  "doors": [],
+  "keys": [],
+  "tools": [],
+  "materials": [],
+  "panels": [],
+  "stations": [
+    { "id": "BEACON", "kind": "command", "zone": "Z4", "state": "OFFLINE", "requires": {} }
+  ],
+  "chargers": [],
+  "goal": { "stations_online": ["BEACON"] },
+  "action_costs": { "pickup": 1, "drop": 1, "interact": 2, "recharge": 3 }
+}
