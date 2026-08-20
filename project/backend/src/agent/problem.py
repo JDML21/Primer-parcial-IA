@@ -29,15 +29,12 @@ class Action:
     """Acción interna del agente. La traducción visual ocurre en translate.py."""
 
     kind: str
-    target: str                      # zona destino / item / puerta / panel / estación
+    target: str
     cost: int
-    consumes: Optional[str] = None   # tipo de material (solo REPAIR)
-    frm: Optional[str] = None        # zona origen (solo MOVE)
+    consumes: Optional[str] = None
+    frm: Optional[str] = None
 
 
-# ----------------------------------------------------------------------
-# Applicable
-# ----------------------------------------------------------------------
 def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterator[Action]:
     """Sucesores relevantes. Toda acción exige además `battery >= cost`.
 
@@ -51,16 +48,12 @@ def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterat
     weight = s.load_weight(world)
     capacity = world.cargo_capacity
 
-    # --- MOVE: corredor existente y puerta abierta si la hay ---
     for neighbour, cost, door in world.corridors.get(s.zone, ()):
         if door is not None and door not in s.doors_open:
             continue
         if s.battery >= cost:
             yield Action(MOVE, neighbour, cost, frm=s.zone)
 
-    # --- PICKUP: solo objetos vivos de esta zona que quepan ---
-    # El suelo canónico ya no contiene objetos muertos, así que basta con el
-    # filtro de capacidad y, para materiales, el de unidades necesarias.
     if s.battery >= world.cost_pickup:
         for item, zone in s.ground_ids:
             if zone != s.zone:
@@ -72,23 +65,10 @@ def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterat
             if zone != s.zone or count <= 0:
                 continue
             if s.carried_count(mtype) >= needs.get(mtype, 0):
-                continue  # no llevo más unidades de las que exigen los paneles
+                continue
             if weight + world.item_weight.get(mtype, 1) <= capacity:
                 yield Action(PICKUP, mtype, world.cost_pickup)
 
-    # --- DROP: bajo presión de capacidad y solo de lo que ya no sirve ---
-    # El único efecto de DROP que habilita algo es liberar un espacio de carga:
-    # un objeto en el suelo no habilita ninguna acción. Por eso exijo (a) carga
-    # llena y (b) algo útil que recoger aquí.
-    #
-    # Además solo suelto objetos MUERTOS (llave de puerta ya abierta, herramienta
-    # sin paneles pendientes, unidades de material que sobran). Soltar un objeto
-    # vivo es un *relevo*: dejarlo a medio camino para recogerlo luego. El
-    # contrato lo permite y a veces ahorra un viaje, pero genera la combinatoria
-    # de "en qué zona quedó cada objeto" y hace inviable UCS. No pierde
-    # soluciones: como los objetos vivos nunca se mueven de su zona original,
-    # siempre pueden volver a buscarse, y ninguna acción exige más de
-    # herramienta+material a la vez.
     if s.battery >= world.cost_drop and weight >= capacity and _blocked_pickup_here(world, s, needs):
         for item in sorted(s.carried_ids):
             if allow_live_drops or not is_alive(world, item, s.doors_open, pending):
@@ -97,7 +77,6 @@ def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterat
             if allow_live_drops or count > needs.get(mtype, 0):
                 yield Action(DROP, mtype, world.cost_drop)
 
-    # --- OPEN_DOOR: puerta cerrada adyacente y su llave en la carga ---
     if s.battery >= world.cost_interact:
         for door, (a, b) in world.door_zones.items():
             if door in s.doors_open:
@@ -107,7 +86,6 @@ def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterat
             if world.door_key.get(door) in s.carried_ids:
                 yield Action(OPEN_DOOR, door, world.cost_interact)
 
-    # --- REPAIR: panel pendiente en esta zona, con herramienta y material ---
     if s.battery >= world.cost_interact:
         for panel in sorted(pending):
             if world.panel_zone.get(panel) != s.zone:
@@ -119,7 +97,6 @@ def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterat
                 continue
             yield Action(REPAIR, panel, world.cost_interact, consumes=mtype)
 
-    # --- ACTIVATE: estación de la meta con sus dependencias cumplidas ---
     if s.battery >= world.cost_interact:
         for station in sorted(world.needed_stations):
             if station in s.stations_online:
@@ -132,7 +109,6 @@ def applicable(world: World, s: State, allow_live_drops: bool = False) -> Iterat
                 continue
             yield Action(ACTIVATE, station, world.cost_interact)
 
-    # --- RECHARGE: cargador en la zona y batería no llena ---
     charger = world.recharge_zones.get(s.zone)
     if charger is not None and s.battery < world.battery_max and s.battery >= world.cost_recharge:
         yield Action(RECHARGE, charger, world.cost_recharge)
@@ -149,15 +125,12 @@ def _blocked_pickup_here(world: World, s: State, needs) -> bool:
     return False
 
 
-# ----------------------------------------------------------------------
-# Result
-# ----------------------------------------------------------------------
 def result(world: World, s: State, a: Action) -> State:
     """Transición determinista s --a--> s', devolviendo un estado canónico.
 
     Nunca muta `s`: el estado padre sigue vivo en OPEN y en CLOSED.
     """
-    battery = s.battery - a.cost  # la batería se cobra siempre primero
+    battery = s.battery - a.cost
 
     zone = s.zone
     carried_ids = s.carried_ids
@@ -200,7 +173,7 @@ def result(world: World, s: State, a: Action) -> State:
     elif a.kind == RECHARGE:
         battery = world.battery_max
 
-    else:  # pragma: no cover - defensivo
+    else:
         raise ValueError("unknown action kind {}".format(a.kind))
 
     return canonical(
@@ -228,9 +201,6 @@ def goal_test(world: World, s: State) -> bool:
     return world.goal_stations <= s.stations_online
 
 
-# ----------------------------------------------------------------------
-# Utilidades de multiconjunto (mantienen la forma canónica)
-# ----------------------------------------------------------------------
 def _materials_add(bag, mtype: str, delta: int):
     items = dict(bag)
     items[mtype] = items.get(mtype, 0) + delta

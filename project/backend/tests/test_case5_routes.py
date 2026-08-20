@@ -7,14 +7,14 @@ estrategia elegida y a la función de costo: la más barata.
 
 from __future__ import annotations
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent import solve  # noqa: E402
-from agent.problem import MOVE, Action, result  # noqa: E402
-from agent.search import uniform_cost_search  # noqa: E402
-from agent.state import initial_state  # noqa: E402
-from agent.world import build_world  # noqa: E402
-from simulator import goal_satisfied, simulate  # noqa: E402
+from agent import solve
+from agent.problem import MOVE, Action, result
+from agent.search import uniform_cost_search
+from agent.state import initial_state
+from agent.world import build_world
+from simulator import goal_satisfied, simulate
 
 
 def _walk(world, state, zones):
@@ -28,14 +28,13 @@ def test_both_routes_reach_the_same_world_configuration() -> None:
     world = build_world(load("scenario_alt_routes.json"))
     start = initial_state(world)
 
-    expensive = _walk(world, start, ["Z2", "Z4"])   # 4 + 4 = 8
-    cheap = _walk(world, start, ["Z3", "Z4"])       # 3 + 3 = 6
+    expensive = _walk(world, start, ["Z2", "Z4"])
+    cheap = _walk(world, start, ["Z3", "Z4"])
 
     assert expensive.world_key() == cheap.world_key(), "misma configuracion del mundo"
     assert expensive != cheap, "distinta bateria residual => distinto estado"
     assert cheap.battery > expensive.battery
 
-    # la ruta barata domina: mas bateria y menor costo => la otra no puede mejorar nada
     assert cheap.battery >= expensive.battery
 
 

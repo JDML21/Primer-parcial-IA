@@ -21,9 +21,7 @@ from typing import Dict, FrozenSet, Tuple
 
 from .world import World
 
-# carga de materiales: tupla ordenada ((tipo, count), ...) para hash estable
 MaterialBag = Tuple[Tuple[str, int], ...]
-# suelo de materiales: tupla ordenada (((tipo, zona), count), ...)
 GroundMaterials = Tuple[Tuple[Tuple[str, str], int], ...]
 
 
@@ -32,20 +30,16 @@ class State:
     zone: str
     battery: int
 
-    # --- carga ---
-    carried_ids: FrozenSet[str]      # llaves y herramientas (vivas o ya inútiles)
-    carried_materials: MaterialBag   # materiales por tipo
+    carried_ids: FrozenSet[str]
+    carried_materials: MaterialBag
 
-    # --- suelo (solo objetos vivos) ---
-    ground_ids: Tuple[Tuple[str, str], ...]   # ((item_id, zona), ...) ordenado
+    ground_ids: Tuple[Tuple[str, str], ...]
     ground_materials: GroundMaterials
 
-    # --- entorno persistente ---
     doors_open: FrozenSet[str]
     panels_ok: FrozenSet[str]
     stations_online: FrozenSet[str]
 
-    # ------------------------------------------------------------------
     def load_weight(self, world: World) -> int:
         """Peso total de la carga. DERIVADO: no es variable de estado."""
         total = sum(world.item_weight.get(item, 1) for item in self.carried_ids)
@@ -83,9 +77,6 @@ class State:
         )
 
 
-# ----------------------------------------------------------------------
-# Relevancia: qué sigue vivo dado el entorno y la clausura de la meta
-# ----------------------------------------------------------------------
 def pending_panels(
     world: World, panels_ok: FrozenSet[str], stations_online: FrozenSet[str]
 ) -> FrozenSet[str]:
@@ -124,7 +115,6 @@ def is_alive(world: World, item: str, doors_open: FrozenSet[str], pending: Froze
     return any(world.panel_tool.get(panel) == item for panel in pending)
 
 
-# ----------------------------------------------------------------------
 def canonical(world: World, state: State) -> State:
     """Ordena las estructuras y borra del suelo lo que ya no sirve.
 
@@ -147,7 +137,6 @@ def canonical(world: World, state: State) -> State:
 
     ground_materials = []
     for (mtype, zone), count in state.ground_materials:
-        # nunca hace falta más de `necesarios(M)` unidades desde una misma zona
         keep = min(count, needs.get(mtype, 0))
         if keep > 0:
             ground_materials.append(((mtype, zone), keep))

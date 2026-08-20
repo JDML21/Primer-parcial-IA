@@ -11,9 +11,9 @@ from __future__ import annotations
 import itertools
 from heapq import heappop, heappush
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent.problem import (  # noqa: E402
+from agent.problem import (
     ACTIVATE,
     DROP,
     MOVE,
@@ -25,8 +25,8 @@ from agent.problem import (  # noqa: E402
     goal_test,
     result,
 )
-from agent.state import initial_state, is_alive, material_needs, pending_panels  # noqa: E402
-from agent.world import build_world  # noqa: E402
+from agent.state import initial_state, is_alive, material_needs, pending_panels
+from agent.world import build_world
 
 SAMPLE = 4000
 
@@ -55,7 +55,6 @@ def test_every_generated_action_matches_the_documented_preconditions() -> None:
         weight = state.load_weight(world)
 
         for action in applicable(world, state):
-            # invariante global: toda accion exige bateria >= costo
             assert state.battery >= action.cost, action
 
             if action.kind == MOVE:

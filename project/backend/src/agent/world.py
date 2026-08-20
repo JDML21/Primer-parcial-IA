@@ -21,49 +21,42 @@ class World:
 
     raw: Dict[str, Any]
 
-    # --- constantes del robot ---
     start_zone: str
     battery_max: int
     cargo_capacity: int
 
-    # --- costos oficiales ---
     cost_pickup: int
     cost_drop: int
     cost_interact: int
     cost_recharge: int
 
-    # --- índices ---
     zones: Tuple[str, ...]
-    # zona_origen -> ((zona_destino, costo, puerta_o_None), ...)
     corridors: Dict[str, Tuple[Tuple[str, int, Optional[str]], ...]]
-    door_key: Dict[str, str]                    # door_id -> key_id
+    door_key: Dict[str, str]
     door_zones: Dict[str, Tuple[str, str]]
-    key_door: Dict[str, str]                    # key_id -> door_id
-    item_weight: Dict[str, int]                 # id de llave/herramienta o tipo de material
+    key_door: Dict[str, str]
+    item_weight: Dict[str, int]
     panel_zone: Dict[str, str]
     panel_tool: Dict[str, str]
     panel_material: Dict[str, str]
     station_zone: Dict[str, str]
     station_needs_panels: Dict[str, FrozenSet[str]]
     station_needs_stations: Dict[str, FrozenSet[str]]
-    recharge_zones: Dict[str, str]              # zona -> charger_id
+    recharge_zones: Dict[str, str]
     goal_stations: FrozenSet[str]
 
-    # --- clausura de la meta (calculada una sola vez) ---
-    needed_stations: FrozenSet[str]             # S*: meta + dependencias transitivas
-    needed_panels: FrozenSet[str]               # P*: paneles exigidos por S*
+    needed_stations: FrozenSet[str]
+    needed_panels: FrozenSet[str]
 
-    # --- estado inicial del mundo ---
     battery_start: int
     doors_open_start: FrozenSet[str]
     panels_ok_start: FrozenSet[str]
     stations_online_start: FrozenSet[str]
-    keys_start: Dict[str, str]                       # key_id -> zona
-    tools_start: Dict[str, str]                      # tool_id -> zona
-    materials_start: Dict[Tuple[str, str], int]      # (tipo, zona) -> count
-    material_type_set: FrozenSet[str]                # tipos de material del escenario
+    keys_start: Dict[str, str]
+    tools_start: Dict[str, str]
+    materials_start: Dict[Tuple[str, str], int]
+    material_type_set: FrozenSet[str]
 
-    # ------------------------------------------------------------------
     def corridor_cost(self, frm: str, to: str) -> int:
         """Costo oficial del corredor frm->to."""
         for neighbour, cost, _door in self.corridors.get(frm, ()):
@@ -131,7 +124,6 @@ def build_world(scenario: Dict[str, Any]) -> World:
         if value < 0:
             raise ValueError("action_costs.{} is negative: UCS loses optimality".format(name))
 
-    # --- grafo de corredores ---
     adjacency: Dict[str, List[Tuple[str, int, Optional[str]]]] = {}
     for corridor in scenario.get("corridors", []):
         cost = int(corridor["cost"])
@@ -144,7 +136,6 @@ def build_world(scenario: Dict[str, Any]) -> World:
         )
     corridors = {zone: tuple(sorted(edges)) for zone, edges in adjacency.items()}
 
-    # --- puertas y llaves ---
     door_key: Dict[str, str] = {}
     door_zones: Dict[str, Tuple[str, str]] = {}
     key_door: Dict[str, str] = {}
@@ -157,7 +148,6 @@ def build_world(scenario: Dict[str, Any]) -> World:
         if door.get("state") == "OPEN":
             doors_open_start.add(door["id"])
 
-    # --- objetos ---
     item_weight: Dict[str, int] = {}
     keys_start: Dict[str, str] = {}
     for key in scenario.get("keys", []):
@@ -175,7 +165,6 @@ def build_world(scenario: Dict[str, Any]) -> World:
         materials_start[slot] = materials_start.get(slot, 0) + int(material.get("count", 1))
         item_weight[material["type"]] = int(material.get("weight", 1))
 
-    # --- paneles ---
     panel_zone: Dict[str, str] = {}
     panel_tool: Dict[str, str] = {}
     panel_material: Dict[str, str] = {}
@@ -188,7 +177,6 @@ def build_world(scenario: Dict[str, Any]) -> World:
         if panel.get("state") == "OK":
             panels_ok_start.add(panel["id"])
 
-    # --- estaciones ---
     station_zone: Dict[str, str] = {}
     station_needs_panels: Dict[str, FrozenSet[str]] = {}
     station_needs_stations: Dict[str, FrozenSet[str]] = {}
@@ -201,9 +189,6 @@ def build_world(scenario: Dict[str, Any]) -> World:
         if station.get("state") == "ONLINE":
             stations_online_start.add(station["id"])
 
-    # --- cargadores ---
-    # Solo cuentan las zonas con un cargador declarado: el simulador exige que el
-    # `target` de RECHARGE sea un id de `chargers` situado en la zona del robot.
     recharge_zones: Dict[str, str] = {}
     for charger in scenario.get("chargers", []):
         recharge_zones[charger["zone"]] = charger["id"]

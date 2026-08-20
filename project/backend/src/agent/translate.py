@@ -48,7 +48,7 @@ def to_contract_steps(world: World, plan: List[Action]) -> List[Dict[str, Any]]:
                     "cost": action.cost,
                 }
             )
-        else:  # pragma: no cover - defensivo
+        else:
             raise ValueError("cannot translate internal action {}".format(action.kind))
 
     return steps

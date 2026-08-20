@@ -6,11 +6,11 @@ aunque se hayan generado por historias distintas.
 
 from __future__ import annotations
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent.problem import PICKUP, Action, result  # noqa: E402
-from agent.state import State, initial_state  # noqa: E402
-from agent.world import build_world  # noqa: E402
+from agent.problem import PICKUP, Action, result
+from agent.state import State, initial_state
+from agent.world import build_world
 
 
 def _state_in_storage(world) -> State:
@@ -54,7 +54,6 @@ def test_materials_are_equivalent_by_type() -> None:
     carrying = result(world, start, pick_fuse)
 
     assert carrying.carried_materials == (("FUSE", 1),), carrying.carried_materials
-    # el suelo cuenta unidades, no identidades
     for slot, count in carrying.ground_materials:
         assert isinstance(count, int)
 

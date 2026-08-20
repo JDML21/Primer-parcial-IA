@@ -37,7 +37,7 @@ class SearchResult:
     cost: int = 0
     expanded: int = 0
     generated: int = 0
-    aborted: bool = False   # se alcanzó la cota de nodos, no es un FAILURE legítimo
+    aborted: bool = False
 
 
 def _dominated(closed: Dict[Tuple, List[Tuple[int, int]]], node: Node) -> bool:
@@ -73,8 +73,6 @@ def uniform_cost_search(
     root = Node(initial_state(world), 0)
 
     tiebreaker = itertools.count()
-    # (g, contador, nodo): el contador evita que el heap compare estados, que
-    # definen == y hash pero no un orden total.
     open_heap: List[Tuple[int, int, Node]] = [(0, next(tiebreaker), root)]
     closed: Dict[Tuple, List[Tuple[int, int]]] = {}
 

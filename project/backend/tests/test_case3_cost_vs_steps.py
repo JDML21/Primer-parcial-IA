@@ -7,10 +7,10 @@ costo, y el agente devuelve la de menor costo: es lo que se afirmó en
 
 from __future__ import annotations
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent import solve  # noqa: E402
-from simulator import goal_satisfied, simulate  # noqa: E402
+from agent import solve
+from simulator import goal_satisfied, simulate
 
 
 def test_agent_prefers_cheaper_plan_with_more_steps() -> None:
@@ -21,7 +21,6 @@ def test_agent_prefers_cheaper_plan_with_more_steps() -> None:
     assert plan["total_cost"] == 12, plan["total_cost"]
     assert len(plan["steps"]) == 3, plan["steps"]
 
-    # el plan elegido rodea por Z2 en vez de tomar el corredor directo caro
     zones = [s["to"] for s in plan["steps"] if s["op"] == "MOVE"]
     assert zones == ["Z2", "Z3"], zones
 
@@ -40,8 +39,8 @@ def test_the_shortest_plan_is_more_expensive() -> None:
         {"op": "INTERACT", "target": "BEACON", "action": "ACTIVATE", "cost": 2},
     ]
 
-    final = simulate(scenario, shortest)          # es legal...
-    assert goal_satisfied(scenario, final)        # ...y alcanza la meta
+    final = simulate(scenario, shortest)
+    assert goal_satisfied(scenario, final)
 
     cost_shortest = sum(s["cost"] for s in shortest)
     optimal = solve(scenario)

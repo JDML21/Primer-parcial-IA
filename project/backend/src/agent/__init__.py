@@ -46,7 +46,6 @@ def solve(scenario: Dict[str, Any], max_nodes: int = DEFAULT_MAX_NODES) -> Dict[
     steps = to_contract_steps(world, outcome.plan)
     return {
         "solution_found": True,
-        # el costo es el g(n) del nodo meta, no una suma recalculada aparte
         "total_cost": outcome.cost,
         "steps": steps,
         "message": (

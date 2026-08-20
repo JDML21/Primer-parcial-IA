@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import time
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent import solve  # noqa: E402
-from agent.search import uniform_cost_search  # noqa: E402
-from agent.world import build_world  # noqa: E402
+from agent import solve
+from agent.search import uniform_cost_search
+from agent.world import build_world
 
 
 def test_impossible_mission_returns_failure() -> None:

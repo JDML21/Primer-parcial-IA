@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import time
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent import solve  # noqa: E402
-from simulator import goal_satisfied, simulate  # noqa: E402
+from agent import solve
+from simulator import goal_satisfied, simulate
 
 VISUAL_OPS = {"MOVE", "PICKUP", "DROP", "INTERACT"}
 INTERACT_ACTIONS = {"OPEN_DOOR", "REPAIR", "ACTIVATE", "RECHARGE"}

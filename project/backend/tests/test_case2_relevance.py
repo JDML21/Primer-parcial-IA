@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import dataclasses
 
-from helpers import load  # noqa: E402
+from helpers import load
 
-from agent.problem import OPEN_DOOR, PICKUP, Action, applicable, result  # noqa: E402
-from agent.state import initial_state  # noqa: E402
-from agent.world import build_world  # noqa: E402
+from agent.problem import OPEN_DOOR, PICKUP, Action, applicable, result
+from agent.state import initial_state
+from agent.world import build_world
 
 
 def test_battery_distinguishes_states() -> None:
