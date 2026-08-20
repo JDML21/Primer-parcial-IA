@@ -18,15 +18,14 @@ una política reactiva.
 ### Definición formal
 
 ```text
-s = ⟨ z, b, C, J, G, D, P, S ⟩
+s = ⟨ z, b, C, G, D, P, S ⟩
 ```
 
 | Símbolo | Significado | Representación |
 |---|---|---|
 | `z` | zona donde está el robot | `str` |
 | `b` | batería disponible | `int`, `0 ≤ b ≤ battery_max` |
-| `C` | carga **viva**: llaves/herramientas + materiales por tipo | `frozenset` de ids + tupla ordenada `((tipo, count), …)` |
-| `J` | lastre: número de objetos **muertos** que aún ocupan capacidad | `int` |
+| `C` | carga: llaves/herramientas + materiales por tipo | `frozenset` de ids + tupla ordenada `((tipo, count), …)` |
 | `G` | suelo **vivo**: dónde quedó cada objeto que todavía sirve | tuplas ordenadas `((id, zona), …)` y `(((tipo, zona), count), …)` |
 | `D` | puertas abiertas | `frozenset` de ids |
 | `P` | paneles reparados | `frozenset` de ids |
@@ -48,10 +47,8 @@ futuras o en su resultado.
   es parte de la situación física, no un contador de bitácora.
 - **`C`** — `OPEN_DOOR` exige la llave *en la carga*, `REPAIR` exige herramienta
   y material *en la carga*. Además su peso limita los `PICKUP` futuros.
-- **`J`** — un objeto muerto ya no habilita nada, pero **sigue ocupando un
-  espacio de carga**, y eso sí cambia qué `PICKUP` son legales. Como su
-  identidad ya no importa, guardo solo cuántos son: es la mínima información
-  que preserva la legalidad futura.
+  Un objeto ya inútil que siga en la carga **sigue ocupando espacio**, así que
+  no desaparece de `C`: sale solo cuando el robot lo suelta.
 - **`G`** — en cuanto el robot puede soltar (`DROP`), la posición de los objetos
   deja de deducirse del escenario inicial. Necesito saber dónde está lo que
   todavía sirve para saber dónde puedo recogerlo.
@@ -67,7 +64,7 @@ Todo lo que es constante del escenario o función del estado vive fuera de `Stat
 
 - el grafo de corredores, sus costos y sus puertas;
 - `action_costs`, `cargo_capacity`, `battery_max`;
-- el peso de la carga (suma de los pesos de `C` más `J`);
+- el peso de la carga (suma de los pesos de los objetos de `C`);
 - qué llave abre qué puerta, qué herramienta y qué material exige cada panel,
   qué paneles y estaciones requiere cada estación;
 - la **clausura de la meta**, que calculo una sola vez al parsear el escenario:
@@ -105,9 +102,7 @@ equivalencia física uso estructuras canónicas:
 2. **Conjuntos y tuplas ordenadas**, no listas: el orden en que recogí los
    objetos no es información física. `PICKUP KEY1, PICKUP FUSE` y
    `PICKUP FUSE, PICKUP KEY1` producen el **mismo** estado.
-3. **Lastre anónimo**: dos objetos muertos en la carga son indistinguibles, así
-   que se cuentan, no se listan.
-4. La canonicalización se aplica **dentro de `Result`**, de modo que ningún
+3. La canonicalización se aplica **dentro de `Result`**, de modo que ningún
    estado no canónico llega nunca a OPEN ni a CLOSED.
 
 ### Relevancia: objetos que ya no cambian el futuro
@@ -135,12 +130,16 @@ tanto:
 
 - si está en el **suelo**, lo borro del estado: su posición ya no distingue
   situaciones. Mantenerlo multiplicaría el espacio por `|zonas|` por cada objeto
-  muerto, que es justamente la explosión por permutaciones de objetos muertos;
-- si está en la **carga**, lo colapso a `J += 1`: pierde identidad pero conserva
-  lo único que aún importa, el espacio que ocupa.
-
-Esto no pierde soluciones: dos estados que solo difieran en objetos muertos
-tienen exactamente el mismo conjunto de planes futuros y los mismos costos.
+  muerto, que es justamente la explosión por permutaciones de objetos muertos.
+  Esto no pierde soluciones: dos estados que solo difieran en objetos muertos
+  del suelo tienen el mismo conjunto de planes futuros y los mismos costos;
+- si está en la **carga**, **conservo su id**. Es tentador colapsarlo a un
+  contador anónimo de lastre —físicamente solo importa el espacio que ocupa—,
+  pero el contrato exige nombrar el objeto al soltarlo
+  (`{"op":"DROP","item":"KEY1"}`), y un lastre sin identidad no se puede
+  traducir a un paso válido. El costo de conservar el id es despreciable: la
+  carga está acotada por `cargo_capacity`, así que aquí no hay explosión —
+  la explosión vive en el suelo, que sí tiene `|zonas|` valores por objeto.
 
 ---
 
@@ -153,10 +152,10 @@ descuentan `cost(a)` de la batería.
 Acción            | Precondiciones                                          | Efectos                                   | Costo
 ------------------|---------------------------------------------------------|-------------------------------------------|------------------------
 MOVE(z → z')      | existe corredor z→z'; si tiene puerta d, d ∈ D           | z := z'                                   | corridor.cost
-PICKUP(x)         | x en el suelo de z; peso(C)+J+w(x) ≤ cap; x está VIVO;   | x: suelo → carga                          | action_costs.pickup
+PICKUP(x)         | x en el suelo de z; peso(C)+w(x) ≤ cap; x está VIVO;     | x: suelo → carga                          | action_costs.pickup
                   | si x es material M: llevados(M) < necesarios(M)          |                                           |
-DROP(x)           | x ∈ carga (o J>0); carga LLENA; existe en z un PICKUP    | x: carga → suelo de z                     | action_costs.drop
-                  | útil bloqueado únicamente por capacidad                  | (si x es lastre, desaparece)              |
+DROP(x)           | x ∈ C; x está MUERTO; carga LLENA; existe en z un        | x: carga → suelo de z                     | action_costs.drop
+                  | PICKUP útil bloqueado únicamente por capacidad           | (al estar muerto, sale del estado)        |
 OPEN_DOOR(d)      | z ∈ between(d); d ∉ D; llave(d) ∈ C                      | D := D ∪ {d}                              | action_costs.interact
 REPAIR(p)         | z = zona(p); p ∉ P; herramienta(p) ∈ C; material(p) ∈ C  | P := P ∪ {p}; material consumido;         | action_costs.interact
                   |                                                         | la herramienta NO se consume              |
@@ -185,15 +184,11 @@ dañados.** Mismo argumento: cada unidad sobrante cuesta un `pickup` y solo
 consume capacidad. `REPAIR` consume exactamente una unidad por panel.
 
 **3. `DROP` solo bajo presión de capacidad.**
-Esta es la decisión central. El contrato permite soltar casi siempre, pero si
-genero todos los `DROP` legales el espacio deja de ser «cinco zonas y unas
-tareas» y pasa a ser «en cuál de las cinco zonas quedó cada objeto».
-
 Observación clave: **el único efecto de `DROP` que habilita algo es liberar un
 espacio de carga**. Un objeto en el suelo no habilita ninguna acción; solo
 habilita estando en la carga. Y la meta no menciona posiciones de objetos.
 
-Argumento de intercambio. Sea `P*` un plan óptimo con un `DROP(x)` ejecutado en
+Argumento de intercambio. Sea `Π` un plan óptimo con un `DROP(x)` ejecutado en
 un instante `t₀` en el que la carga **no** estaba llena o no había ningún
 `PICKUP` útil bloqueado en esa zona:
 
@@ -205,22 +200,49 @@ un instante `t₀` en el que la carga **no** estaba llena o no había ningún
   elimino el `DROP` **y** el `PICKUP` correspondiente. El robot simplemente
   conservó `x`; el plan es legal y ahorra `drop + pickup`.
 
-En ambos casos obtengo un plan de costo `≤` cuyos `DROP` cumplen mi restricción,
-así que mi generador sigue alcanzando el óptimo. (Borde: si tras la reescritura
-un `RECHARGE` cae con la batería llena, ese `RECHARGE` era innecesario y también
-se elimina; los prefijos de costo solo bajan, luego la factibilidad de batería
-se conserva.)
+En ambos casos obtengo un plan de costo `≤` cuyos `DROP` cumplen la restricción,
+así que exigir presión de capacidad no pierde el óptimo. (Borde: si tras la
+reescritura un `RECHARGE` cae con la batería llena, ese `RECHARGE` era
+innecesario y también se elimina; los prefijos de costo solo bajan, luego la
+factibilidad de batería se conserva.)
 
-**Caso residual que el argumento no cubre — y por qué lo acepto.** Queda un
-tercer caso: un plan que suelta `x` *con capacidad libre* en una zona a la que
-volverá, para recogerlo allí más tarde (pre-posicionamiento). Mi generador
-soltaría `x` después, en la zona donde aparece la presión, y recuperarlo podría
-costar un desvío distinto. Ese plan paga `drop + pickup` sin obtener **ningún**
-beneficio en el momento de soltar —la capacidad estaba libre—, y su única
-ventaja posible es la ubicación del objeto. Lo descarto por diseño: es la
-diferencia entre un espacio de estados recorrible y uno que combina las
-posiciones de todos los objetos. Dejo la condición escrita para que quede claro
-que es una decisión consciente y acotada, no un descuido.
+**4. `DROP` solo de objetos muertos — la restricción que hace viable la
+búsqueda, y la que más honestamente debo justificar.**
+
+La condición anterior no basta. La medí: con `DROP` restringido solo por presión
+de capacidad, UCS expande **32.745 estados sin pasar de `g = 45`** en la
+instancia demo, cuyo plan óptimo cuesta 88. No termina. La razón es que el robot
+puede **relevar** objetos vivos: llenarse, soltar una herramienta viva en una
+zona intermedia y recogerla después. Cada relevo cambia *en qué zona quedó cada
+objeto*, que es exactamente la combinatoria que el enunciado advierte.
+
+Por eso mi generador solo suelta objetos **muertos** (llave de puerta ya
+abierta, herramienta sin paneles pendientes, unidades de material sobrantes).
+Con esa restricción la misma instancia se resuelve expandiendo **38.751 estados
+en 1,4 s**.
+
+*Por qué no pierde soluciones (completitud).* Como los objetos vivos nunca se
+mueven de su zona original, siempre se pueden volver a buscar donde estaban.
+Y ninguna acción de este dominio exige más de **dos** objetos simultáneos
+(`REPAIR` pide herramienta + material; `OPEN_DOOR` pide una llave). Mientras
+`cargo_capacity ≥ 2`, existe siempre un plan que va a buscar cada cosa cuando
+la necesita y suelta lo que ya murió: la búsqueda explora todos los órdenes, así
+que si la instancia tiene solución, la encuentra.
+
+*Qué sí puede costar (optimalidad).* Un relevo puede ahorrar un viaje: dejar la
+herramienta a mitad de camino en vez de devolverla a su zona. Mi agente nunca
+generará ese plan, así que en una instancia donde el relevo sea estrictamente
+más barato devolvería el óptimo **entre los planes sin relevo**, no el óptimo
+global. Para la instancia demo estoy comprobándolo por fuerza bruta: un UCS con
+`DROP` tan permisivo como el contrato, acotado a `g < 88`, que decide si existe
+algún plan más barato. Mientras esa comprobación no concluya, la afirmación que
+sostengo es la conservadora: mi agente devuelve el plan de menor costo **entre
+los que no usan relevos**.
+
+Dejo la condición escrita en lugar de esconderla: es una decisión de
+formulación consciente y acotada, no un descuido, y el parámetro
+`allow_live_drops` de `Applicable` permite comprobar el trade-off en cualquier
+instancia (`tests/test_case3_cost_vs_steps.py`).
 
 **Lo que NO hago.** No subo `cargo_capacity`, no ignoro la batería y no toco
 `scenario.json`: eso resolvería esta instancia y fallaría la siguiente. El
